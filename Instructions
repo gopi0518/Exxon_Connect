@@ -1,0 +1,106 @@
+*****************Openshift setup******************
+Create OpenShift cluster
+az aro create \
+  --resource-group $RESOURCEGROUP \
+  --name $CLUSTER \
+  --vnet gdappili-vnet-pocs \
+  --master-subnet master-subnet \
+  --worker-subnet worker-subnet
+
+Get OpenShift credentials
+
+az aro list-credentials \
+  --name $CLUSTER \
+  --resource-group $RESOURCEGROUP
+
+Get OpenShift console url
+
+az aro show \
+    --name $CLUSTER \
+    --resource-group $RESOURCEGROUP \
+    --query "consoleProfile.url" -o tsv
+
+Get API Server info
+
+apiServer=$(az aro show -g $RESOURCEGROUP -n $CLUSTER --query apiserverProfile.url -o tsv)
+
+***assuming oc cli installed*******
+
+Reference: https://docs.openshift.com/container-platform/4.8/cli_reference/openshift_cli/getting-started-cli.html
+
+Login
+oc login $apiServer -u kubeadmin -p <kubeadmin password>
+
+oc new-project exxonconnectors
+
+
+**********************Kafka connect deployment**********************************
+
+Install Confluent operator
+
+helm upgrade --install operator confluentinc/confluent-for-kubernetes --set podSecurity.enabled=false
+
+Install Secrets
+
+kubectl create secret generic ccloud-credentials --from-file=plain.txt=ccloud-credentials.txt
+kubectl create secret generic ccloud-sr-credentials --from-file=basic.txt=ccloud-sr-credentials.txt
+kubectl create secret generic mysql-credential --from-file=sqlcreds.txt=sqlcreds.txt
+
+Install Connect
+kubectl apply -f kafka-connect_old_1.yaml
+
+MYSQL
+
+oc new-app -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=connect_test mysql:5.6
+
+login to mysql and execute
+
+mysql --host=localhost --user=root --password=root connect_test
+
+CREATE DATABASE IF NOT EXISTS connect_test;
+USE connect_test;
+
+DROP TABLE IF EXISTS test;
+
+
+CREATE TABLE IF NOT EXISTS test_latest (
+  id serial NOT NULL PRIMARY KEY,
+  name varchar(100),
+  email varchar(200),
+  department varchar(200),
+  modified timestamp default CURRENT_TIMESTAMP NOT NULL,
+  INDEX `modified_index` (`modified`)
+);
+
+INSERT INTO test_latest (name, email, department) VALUES ('alice123', 'alice@abc.com', 'engineering');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('alice', 'alice@abc.com', 'engineering');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+INSERT INTO test (name, email, department) VALUES ('bob', 'bob@abc.com', 'sales');
+
+
+***********Install jdbc connector**********************
+Install connector
+
+kubectl apply -f jdbc-connector-config.yaml
+
+
+************Support bundle**********
+Run support bundle
+
+kubectl confluent support-bundle -h

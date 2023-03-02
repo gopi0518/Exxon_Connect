@@ -1,0 +1,44 @@
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connect
+metadata:
+  name: connect
+spec:
+  keyConverterType: io.confluent.connect.avro.AvroConverter
+  valueConverterType: io.confluent.connect.avro.AvroConverter
+  replicas: 1
+  image:
+    application: confluentinc/cp-server-connect:7.3.0
+    init: confluentinc/confluent-init-container:2.5.0
+  podTemplate:
+    podSecurityContext: {}
+    resources:
+      requests:
+        cpu: "1"
+        memory: "6Gi"
+  build:
+    type: onDemand
+    onDemand:
+      plugins:
+        locationType: url
+        url:
+          - name: kafka-connect-jdbc # the url is used here as we needed to build our own connector lib to include the mysql jdbc jar
+            archivePath: https://raw.githubusercontent.com/confluentinc/confluent-kubernetes-examples/master/hybrid/ccloud-JDBC-mysql/confluentinc-kafka-connect-jdbc-10.2.5.zip
+  dependencies:
+    kafka:
+      bootstrapEndpoint: pkc-2396y.us-east-1.aws.confluent.cloud:9092
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: ccloud-credentials
+      tls:
+        enabled: true
+        ignoreTrustStoreConfig: true
+    schemaRegistry:
+      url: https://psrc-4r3xk.us-east-2.aws.confluent.cloud
+      authentication:
+        type: basic
+        basic:
+          secretRef: ccloud-sr-credentials
+  mountedSecrets:
+    - secretRef: mysql-credential

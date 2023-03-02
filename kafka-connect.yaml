@@ -1,0 +1,46 @@
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connect
+metadata:
+  name: connect
+spec:
+  replicas: 1
+  image:
+    application: gopi210/connect-jdbc-mysql:v6
+    init: confluentinc/confluent-init-container:2.5.0
+  configOverrides:
+    server:
+      - plugin.path=/usr/share/java,/usr/share/confluent-hub-components,/mnt/plugins,/mnt/plugins/confluentinc-kafka-connect-jdbc/lib
+  podTemplate:
+    podSecurityContext: {}
+    resources:
+      requests:
+        cpu: "1"
+        memory: "6Gi"
+  build:
+    type: onDemand
+    onDemand:
+      plugins:
+        locationType: confluentHub
+        confluentHub:
+          - name: kafka-connect-jdbc
+            owner: confluentinc
+            version: 10.2.5
+  dependencies:
+    kafka:
+      bootstrapEndpoint: abc.us-east-1.aws.confluent.cloud:9092
+      authentication:
+        type: plain
+        jaasConfig:
+          secretRef: ccloud-credentials
+      tls:
+        enabled: true
+        ignoreTrustStoreConfig: true
+    schemaRegistry:
+      url: https://abc.us-east-2.aws.confluent.cloud
+      authentication:
+        type: basic
+        basic:
+          secretRef: ccloud-sr-credentials
+  mountedSecrets:
+    - secretRef: mysql-credential
